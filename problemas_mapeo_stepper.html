@@ -1,0 +1,94 @@
+<style>
+.step-panel { display:none; padding:0; }
+.step-panel.active { display:block; }
+.nav-dots { display:flex; gap:8px; justify-content:center; margin-bottom:16px; }
+.nav-dot { width:8px; height:8px; border-radius:50%; background:var(--color-border-secondary); cursor:pointer; transition:background .2s; border:none; padding:0; }
+.nav-dot.on { background:var(--color-text-primary); }
+.step-title { font-size:15px; font-weight:500; margin-bottom:6px; color:var(--color-text-primary); }
+.step-sub { font-size:12px; color:var(--color-text-secondary); margin-bottom:14px; }
+.nav-row { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+.counter { font-size:12px; color:var(--color-text-secondary); }
+.seq-block { font-family:var(--font-mono); font-size:13px; background:var(--color-background-secondary); padding:10px 14px; border-radius:var(--border-radius-md); margin:10px 0; line-height:1.8; color:var(--color-text-primary); }
+.warn-box { background:var(--color-background-warning); border:0.5px solid var(--color-border-warning); border-radius:var(--border-radius-md); padding:10px 14px; font-size:12px; color:var(--color-text-warning); margin-top:10px; }
+.ok-box   { background:var(--color-background-success); border:0.5px solid var(--color-border-success); border-radius:var(--border-radius-md); padding:10px 14px; font-size:12px; color:var(--color-text-success); margin-top:10px; }
+.info-row { display:flex; gap:12px; margin-top:10px; }
+.info-card { flex:1; background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:10px 12px; font-size:12px; color:var(--color-text-secondary); }
+.info-card b { display:block; font-weight:500; color:var(--color-text-primary); margin-bottom:4px; font-size:13px; }
+</style>
+
+<div class="nav-dots" id="dots"></div>
+
+<div id="panels">
+
+<div class="step-panel active">
+  <div class="step-title">Ambigüedad de alineamiento</div>
+  <div class="step-sub">Una lectura puede mapear en múltiples posiciones del genoma</div>
+  <div class="seq-block">
+Lectura:   <span style="color:#185FA5;">ATCGGCATTAGCCTAG</span>
+
+chr1:4500  ATCGGCATTAGCCTAG  ← match perfecto
+chr7:2100  ATCGGCATTAGCCTAG  ← match perfecto (!)
+chr17:890  ATCGGCATTAGCCTAG  ← match perfecto (!!)
+  </div>
+  <div class="warn-box">¿En cuál de los tres lugares ubico esta lectura? Si la pongo en el lugar equivocado, la variante que detecte va a estar en el cromosoma incorrecto.</div>
+  <div class="ok-box">Solución: BWA-mem asigna un MAPQ (mapping quality score) bajo a estas lecturas. Las lecturas con MAPQ bajo se descartan o se tratan con baja confianza.</div>
+</div>
+
+<div class="step-panel">
+  <div class="step-title">Repetitividad del genoma humano</div>
+  <div class="step-sub">Más del 50% del genoma son secuencias repetitivas</div>
+  <div class="info-row">
+    <div class="info-card"><b>Elementos Alu (~11%)</b>Repeticiones de ~300 pb distribuidas por todo el genoma. Muy frecuentes en intrones.</div>
+    <div class="info-card"><b>LINEs (~20%)</b>Long Interspersed Nuclear Elements. Hasta 6 kb. Son los repetidos más abundantes.</div>
+    <div class="info-card"><b>Genes duplicados</b>Familias génicas con secuencias muy similares. Una lectura de un gen puede mapear al parálogo incorrecto.</div>
+  </div>
+  <div class="warn-box">Una lectura de 150 pb que cae dentro de un Alu puede mapear en miles de posiciones del genoma simultáneamente. En esas regiones, el WES directamente no da información confiable.</div>
+</div>
+
+<div class="step-panel">
+  <div class="step-title">Eficiencia computacional</div>
+  <div class="step-sub">Alinear millones de lecturas contra 3 Gb requiere algoritmos inteligentes</div>
+  <div class="seq-block">
+Lecturas tipicas por muestra WES:  ~50-100 millones
+Longitud de cada lectura:          150 pb
+Tamaño del genoma de referencia:   3.200.000.000 pb
+
+Comparaciones naivas:              50M x 3.2G = 160 quadrillones
+  </div>
+  <div class="warn-box">Buscar cada lectura contra todo el genoma de forma exhaustiva es imposible en tiempo razonable.</div>
+  <div class="ok-box">BWA-mem usa una estructura de datos llamada BWT (Burrows-Wheeler Transform) que indexa el genoma de referencia y permite búsquedas ultrarrápidas. En la práctica, un WES se mapea en 1-2 horas en un servidor moderno.</div>
+</div>
+
+<div class="step-panel">
+  <div class="step-title">Errores de secuenciación</div>
+  <div class="step-sub">Las lecturas pueden tener errores de base que complican el alineamiento</div>
+  <div class="seq-block">
+Secuencia real del paciente:  ATCGGCATTAGCCTAG
+Lectura del secuenciador:     ATCG<span style="color:#E24B4A;">A</span>CATTAGCCTAG  ← error en posicion 5
+
+La lectura tiene un mismatch con la referencia, pero
+¿es una variante real o un error de secuenciacion?
+  </div>
+  <div class="info-row">
+    <div class="info-card"><b>Tasa de error Illumina</b>~0.1-1% por base. En una lectura de 150 pb → esperás 0-1 errores por lectura.</div>
+    <div class="info-card"><b>Phred score (Q)</b>Q20 = 1% error; Q30 = 0.1% error. Bases con Q&lt;20 se filtran antes del alineamiento.</div>
+    <div class="info-card"><b>Solución: profundidad</b>Si 30 lecturas dicen A en esa posición y 1 dice T → la T es probablemente error. Si 15/30 dicen T → es variante real (heterocigoto).</div>
+  </div>
+</div>
+
+</div>
+
+<div class="nav-row">
+  <button onclick="move(-1)">← Anterior</button>
+  <span class="counter" id="ctr">1 / 4</span>
+  <button onclick="move(1)">Siguiente →</button>
+</div>
+
+<script>
+var cur=0, total=4;
+var panels=document.querySelectorAll('.step-panel');
+var dots=document.getElementById('dots');
+for(var i=0;i<total;i++){var b=document.createElement('button');b.className='nav-dot'+(i===0?' on':'');b.onclick=(function(j){return function(){go(j)}})(i);dots.appendChild(b);}
+function go(n){panels[cur].classList.remove('active');document.querySelectorAll('.nav-dot')[cur].classList.remove('on');cur=n;panels[cur].classList.add('active');document.querySelectorAll('.nav-dot')[cur].classList.add('on');document.getElementById('ctr').textContent=(cur+1)+' / '+total;}
+function move(d){go((cur+d+total)%total);}
+</script>
